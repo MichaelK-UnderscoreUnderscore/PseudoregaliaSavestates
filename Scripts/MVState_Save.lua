@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-doc-name
+
 ---@meta
 
 ---@class UMVState_Save_C : USaveGame

@@ -1,11 +1,8 @@
+---@diagnostic disable: undefined-global
 local UEHelpers = require("UEHelpers")
 local MVState_Save = require("MVState_Save")
 
 -- Start --
-local World = UEHelpers.GetWorld()
-local GameInstance = World:GetGameInstance() -- UMV_GameInstance_C
-local PlayerController = UEHelpers.GetPlayerController()
-
 function PseudoregaliaSavestates.SaveState(Slot --[[int]])
     local SaveGame = MVState_Save.UMVState_Save_C()
     SaveGame.SavedZoneData = GameInstance.allZoneData
@@ -28,12 +25,11 @@ function PseudoregaliaSavestates.SaveState(Slot --[[int]])
     SaveGame.unlockedOutfits = GameInstance['Unlocked Outfits']
     SaveGame.currentOutfit = GameInstance['Current Outfit']
     SaveGame.allRoomData = GameInstance['All Room Data']
-    SaveGame.PlayerPosition = PlayerController:GetPawn():GetActorLocation()
-    SaveGame.PlayerVelocity = PlayerController:GetPawn():GetVelocity()
-    SaveGame.PlayerRotation = PlayerController:GetPawn():GetActorRotation()
-    SaveGame.PlayerHealth = PlayerController:GetPawn().Health
-    SaveGame.PlayerMaxHealth = PlayerController:GetPawn().MaxHealth
-    SaveGame.allEnemyData = FindAllOf("AActor")
+    SaveGame.PlayerPosition = PlayerController.Pawn:K2_GetActorLocation()
+    SaveGame.PlayerVelocity = PlayerController.Pawn:GetVelocity()
+    SaveGame.PlayerRotation = PlayerController.Pawn:K2_GetActorRotation()
+    SaveGame.PlayerHealth = PlayerController.Pawn.Health
+    SaveGame.PlayerMaxHealth = PlayerController.Pawn.MaxHealth
     SaveGame.clearedSave = false
     SaveGame['completedSave?'] = false
     SaveGame.collectablePercent = 0
