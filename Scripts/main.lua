@@ -14,17 +14,6 @@ local var_ReloadTeleport_ID = 0
 
 -- Local defines for readability
 local MapName = "mapName_4_423D13C74469858B6E9893BEB6ABFBBB"
-
-
-local function Test()
----@diagnostic disable: need-check-nil, undefined-field
-    Utils.print("Test")
-end
-
-local function Test2()
-    Utils.print("Test2")
----@diagnostic enable: need-check-nil, undefined-field
-end
 function PseudoregaliaSavestates.LoadSavedPositionsFromFile()
     local File = io.open(SaveFile, "r")
     if File == nil then
@@ -70,43 +59,41 @@ function PseudoregaliaSavestates.SavePositionsToFile()
     File:close()
 end
 
+function PseudoregaliaSavestates.LoadArea(ID --[[int]])
+    local SystemLibrary = Utils.hook_KismetSystemLibrary()
+    local PlayerController = Utils.hook_PlayerController()
+    
+    if not var_SavedPositions[ID] then
+        Utils.print("No saved position for ID " .. ID)
+        return
+    end
+    if SystemLibrary == nil or PlayerController == nil then
+        Utils.print("SystemLibrary or PlayerController not found")
+        return
+    end
+    local Area = var_SavedPositions[ID].Area
+
+    var_ReloadTeleport_bool = true
+    var_ReloadTeleport_ID = ID
+    Utils.print("Teleporting to " .. Area .. " to load position " .. ID)
+    SystemLibrary:ExecuteConsoleCommand(PlayerController, "open " .. var_SavedPositions[ID].Area, nil)
+end
+
 function PseudoregaliaSavestates.LoadPosition(ID --[[int]])
-    do -- Error checking: ---- ID | GameInstance | Console | PlayerController
-        if not var_SavedPositions[ID] then
-            Utils.print("No saved position for ID " .. ID)
-            return
-        end
-        if Utils.hook_GameInstance == nil or not Utils.hook_GameInstance:IsValid() then
-            Utils.print("GameInstance not found")
-            return
-        end
-        if Utils.hook_Console == nil or not Utils.hook_Console:IsValid() then
-            Utils.print("Console not found")
-            return
-        end
-        if Utils.hook_PlayerController == nil or not Utils.hook_PlayerController:IsValid() then
-            Utils.print("PlayerController not found")
-            return
-        end
-        if Utils.hook_CheatManager == nil or not Utils.hook_CheatManager:IsValid() then
-            Utils.print("CheatManager not found")
-            return
-        end
-    end
-    Area = Utils.hook_GameInstance.activeZoneStr[MapName]:ToString()
-    if Area == nil or type(Area) ~= "string" then
-        Utils.print("Area not found")
+    
+    if not var_SavedPositions[ID] then
+        Utils.print("No saved position for ID " .. ID)
         return
     end
-    if Area ~= var_SavedPositions[ID].Area then
-        var_ReloadTeleport_bool = true
-        var_ReloadTeleport_ID = ID
-        Utils.print("Teleporting to " .. Area .. " to load position " .. ID)
-        Utils.hook_Console:ExecuteConsoleCommand(Utils.hook_PlayerController, "open " .. var_SavedPositions[ID].Area, nil)
+    local GameInstance = Utils.hook_GameInstance()
+    local PlayerController = Utils.hook_PlayerController()
+    if GameInstance == nil or PlayerController == nil then
+        Utils.print("GameInstance or PlayerController not found")
         return
     end
-    local Location = Utils.hook_PlayerController.Pawn:K2_GetActorLocation()
-    local Rotation = Utils.hook_PlayerController.Pawn:K2_GetActorRotation()
+
+    local Location = PlayerController.Pawn:K2_GetActorLocation()
+    local Rotation = PlayerController.Pawn:K2_GetActorRotation()
     Location.X = var_SavedPositions[ID].X
     Location.Y = var_SavedPositions[ID].Y
     Location.Z = var_SavedPositions[ID].Z
@@ -116,41 +103,26 @@ function PseudoregaliaSavestates.LoadPosition(ID --[[int]])
 
     Utils.print("Teleporting to position " .. ID)
 
-    Utils.hook_PlayerController.Pawn:K2_SetActorLocation(Location, false, {}, true)
-    Utils.hook_PlayerController.Pawn:K2_SetActorRotation(Rotation, false)
+    PlayerController.Pawn:K2_SetActorLocation(Location, false, {}, true)
+    PlayerController.Pawn:K2_SetActorRotation(Rotation, false)
 end
 function PseudoregaliaSavestates.SavePosition(ID --[[int]])
-    do -- Error checking: ---- ID | GameInstance | PlayerController
-        if type(ID) ~= "number" then
-            Utils.print("ID not number")
-            return
-        end
-        if Utils.hook_GameInstance == nil or not Utils.hook_GameInstance:IsValid() then
-            Utils.print("GameInstance not found")
-            return
-        end
-        if Utils.hook_PlayerController == nil or not Utils.hook_PlayerController:IsValid() then
-            Utils.print("PlayerController not found")
-            return
-        end
+    local GameInstance = Utils.hook_GameInstance()
+    local PlayerController = Utils.hook_PlayerController()
+
+    if GameInstance == nil or PlayerController == nil then
+        Utils.print("GameInstance or PlayerController not found")
+        return
+    end    
+    local Area = GameInstance.activeZoneStr[MapName]:ToString()
+    local Position = PlayerController.Pawn:K2_GetActorLocation()
+    local Rotation = PlayerController.Pawn:K2_GetActorRotation()
+
+    if Area == nil or type(Area) ~= "string" then
+        Utils.print("Area not found")
+        return
     end
-    local Area = Utils.hook_GameInstance.activeZoneStr[MapName]:ToString()
-    local Position = Utils.hook_PlayerController.Pawn:K2_GetActorLocation()
-    local Rotation = Utils.hook_PlayerController.Pawn:K2_GetActorRotation()
-    do -- Error checking: ----  Area | Position | Rotation
-        if Area == nil or type(Area) ~= "string" then
-            Utils.print("Area not found")
-            return
-        end
-        if Position == nil then
-            Utils.print("Position not found")
-            return
-        end
-        if Rotation == nil then
-            Utils.print("Rotation not found")
-            return
-        end
-    end
+    
     var_SavedPositions[ID] = {
         ["Area"] = Area,
         ["X"] = Position.X,
@@ -164,10 +136,7 @@ function PseudoregaliaSavestates.SavePosition(ID --[[int]])
     Utils.print("Saved position " .. ID)
 end
 
--- Init
--- Reload
-Utils.ClientRestart = { 
-    [1] = function ()
+RegisterHook("/Script/Engine.PlayerController:ClientRestart", function (Context)
         var_SavedPositions = {}
         PseudoregaliaSavestates.LoadSavedPositionsFromFile()
         if var_ReloadTeleport_bool then
@@ -175,25 +144,17 @@ Utils.ClientRestart = {
             PseudoregaliaSavestates.LoadPosition(var_ReloadTeleport_ID)
         end
     end
-}
+)
 
 -- Keybinds
-local function RegisterKey(KeyBindName, Callable)
-    if (config_Keybinds[KeyBindName] and not IsKeyBindRegistered(config_Keybinds[KeyBindName].Key, config_Keybinds[KeyBindName].ModifierKeys)) then
-        RegisterKeyBind(config_Keybinds[KeyBindName].Key, config_Keybinds[KeyBindName].ModifierKeys, Callable)
-    end
-end
-
-RegisterKey("Test", function() Test() end)
-RegisterKey("Test2", function() Test2() end)
 for i = 1, config_Keybinds["PositionSaveCount"] do
     if config_Keybinds["LoadPosition " .. i] then
-        RegisterKey("LoadPosition " .. i, function() PseudoregaliaSavestates.LoadPosition(i) end)
-    else 
+        Utils.RegisterKey("LoadPosition " .. i, function () PseudoregaliaSavestates.LoadArea(i) end, config_Keybinds["LoadPosition ".. i]["Key"], config_Keybinds["LoadPosition ".. i]["ModifierKeys"], false)
+    else
         Utils.print("LoadPosition " .. i .. " not found in config_keybinds.lua")
     end
     if config_Keybinds["SavePosition " .. i] then
-        RegisterKey("SavePosition " .. i, function() PseudoregaliaSavestates.SavePosition(i) end)
+        Utils.RegisterKey("SavePosition " .. i, function () PseudoregaliaSavestates.SavePosition(i) end, config_Keybinds["SavePosition ".. i]["Key"], config_Keybinds["SavePosition ".. i]["ModifierKeys"], false)
     else
         Utils.print("SavePosition " .. i .. " not found in config_keybinds.lua")
     end
